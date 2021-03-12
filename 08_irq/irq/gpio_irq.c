@@ -5,12 +5,12 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 
-//#include <linux/gpio/driver.h>
-
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/irqflags.h>
+
+#include <resource_list.h>
 
 MODULE_AUTHOR("Andrii Synenko");
 MODULE_DESCRIPTION("List data module for Linux Kernel ProCamp");
@@ -47,6 +47,8 @@ static struct gpio_conf user_btn  = {66, false, -1, NULL, NULL};
 static struct gpio_conf state_led = {67, true, -1, NULL, NULL};
 static struct gpio_conf busy_led  = {68, true, -1, NULL, NULL};
 static u32 hit_counter;
+
+struct resorce_list gpio_resources;
 
 static int gpio_init(struct gpio_conf *pin)
 {
@@ -144,33 +146,21 @@ static int gpio_irq_init(void)
 
 	pr_info("%s: module starting\n",  __func__);
 
-	res = gpio_init(&state_led);
-	if (res < 0)
-		return res;
 
-	res = gpio_init(&busy_led);
-	if (res < 0) {
-		gpio_deinit(&state_led);
-		return res;
-	}
+	resorce_list_init(&gpio_resources);
 
-	res = gpio_init(&user_btn);
-	if (res < 0) {
-		gpio_deinit(&busy_led);
-		gpio_deinit(&state_led);
-		return res;
-	}
+	res = resorce_init_new_generic(&gpio_resources, &state_led, &gpio_init, &gpio_deinit);
+	res = resorce_init_new_generic(&gpio_resources, &busy_led, &gpio_init, &gpio_deinit);
+	res = resorce_init_new_generic(&gpio_resources, &busy_led, &gpio_init, &gpio_deinit);
 
-	return 0;
+	return res;
 }
 
 static void gpio_irq_exit(void)
 {
 	pr_info("%s: module exit\n",  __func__);
 
-	gpio_deinit(&state_led);
-	gpio_deinit(&busy_led);
-	gpio_deinit(&user_btn);
+	resorce_deinit_all(&gpio_resources);
 }
 
 module_init(gpio_irq_init);
